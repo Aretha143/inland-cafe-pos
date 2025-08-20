@@ -1,5 +1,8 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import './database/connection.js';
 
 // Import routes
@@ -12,6 +15,9 @@ import tablesRoutes from './routes/tables.js';
 import permissionsRoutes from './routes/permissions.js';
 import usersRoutes from './routes/users.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -19,6 +25,9 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from the dist directory
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -55,9 +64,9 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ message: 'Route not found' });
+// Serve React app for all other routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 app.listen(PORT, () => {

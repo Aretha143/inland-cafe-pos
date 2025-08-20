@@ -8,11 +8,12 @@
     "server": "tsx server/index.ts",
     "client": "vite",
     "build": "tsc && vite build",
-    "start": "node server/index.js",
+    "start": "tsx server/index.ts",
     "preview": "vite preview",
     "test": "vitest",
     "db:migrate": "tsx server/scripts/migrate.ts",
-    "db:seed": "tsx server/scripts/seed.ts"
+    "db:seed": "tsx server/scripts/seed.ts",
+    "vercel-build": "npm run build"
   },
   "dependencies": {
     "express": "^4.18.2",

@@ -6,8 +6,9 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Database file path
-const dbPath = join(__dirname, 'pos.db');
+// Use in-memory database for serverless environments (Vercel)
+const isServerless = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+const dbPath = isServerless ? ':memory:' : join(__dirname, 'pos.db');
 
 // Create database connection
 export const db = new Database(dbPath);
@@ -15,7 +16,7 @@ export const db = new Database(dbPath);
 // Enable foreign key constraints
 db.pragma('foreign_keys = ON');
 
-console.log('Connected to SQLite database');
+console.log(`Connected to SQLite database: ${isServerless ? 'in-memory' : 'file-based'}`);
 
 // Initialize database schema
 initializeDatabase();
@@ -31,6 +32,11 @@ function initializeDatabase() {
     try {
       db.exec(schema);
       console.log('Database schema initialized successfully');
+      
+      // If using in-memory database, seed with some basic data
+      if (isServerless) {
+        seedInMemoryDatabase();
+      }
     } catch (err: any) {
       // Check if it's just because tables already exist
       if (err.message.includes('already exists') || err.message.includes('duplicate column name')) {
@@ -41,6 +47,59 @@ function initializeDatabase() {
     }
   } catch (error) {
     console.error('Error reading schema file:', error);
+  }
+}
+
+// Seed in-memory database with basic data for demo purposes
+function seedInMemoryDatabase() {
+  try {
+    // Insert a default admin user
+    const adminPassword = '$2a$10$rQZ8N3YqX2vB1cD4eF5gH6iJ7kL8mN9oP0qR1sT2uV3wX4yZ5aB6cD7eF8gH9iJ';
+    db.prepare(`
+      INSERT OR IGNORE INTO users (id, username, email, password_hash, role, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run([
+      '1',
+      'admin',
+      'admin@inlandcafe.com',
+      adminPassword,
+      'admin',
+      new Date().toISOString(),
+      new Date().toISOString()
+    ]);
+
+    // Insert some basic categories
+    const categories = [
+      ['1', 'Beverages', 'Hot and cold drinks'],
+      ['2', 'Food', 'Main dishes and snacks'],
+      ['3', 'Desserts', 'Sweet treats and pastries']
+    ];
+
+    categories.forEach(([id, name, description]) => {
+      db.prepare(`
+        INSERT OR IGNORE INTO categories (id, name, description, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run([id, name, description, new Date().toISOString(), new Date().toISOString()]);
+    });
+
+    // Insert some sample products
+    const products = [
+      ['1', 'Coffee', 'Hot coffee', '2.50', '1', 'available'],
+      ['2', 'Tea', 'Hot tea', '2.00', '1', 'available'],
+      ['3', 'Burger', 'Beef burger', '8.50', '2', 'available'],
+      ['4', 'Cake', 'Chocolate cake', '4.50', '3', 'available']
+    ];
+
+    products.forEach(([id, name, description, price, category_id, status]) => {
+      db.prepare(`
+        INSERT OR IGNORE INTO products (id, name, description, price, category_id, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run([id, name, description, price, category_id, status, new Date().toISOString(), new Date().toISOString()]);
+    });
+
+    console.log('In-memory database seeded with sample data');
+  } catch (error) {
+    console.error('Error seeding in-memory database:', error);
   }
 }
 
