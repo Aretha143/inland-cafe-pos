@@ -65,9 +65,7 @@ const KitchenPage: React.FC = () => {
     try {
       const response = await api.getOrders({ 
         status: 'active',
-        limit: 50,
-        sort: 'created_at',
-        order: 'desc'
+        limit: 50
       });
       
       if (response.data) {
