@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "server/vercel-serverless.js",
+      "src": "server/vercel-serverless.cjs",
       "use": "@vercel/node"
     },
     {
@@ -16,7 +16,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/server/vercel-serverless.js"
+      "dest": "/server/vercel-serverless.cjs"
     },
     {
       "src": "/(.*)",
@@ -27,7 +27,7 @@
     "NODE_ENV": "production"
   },
   "functions": {
-    "server/vercel-serverless.js": {
+    "server/vercel-serverless.cjs": {
       "maxDuration": 30
     }
   }
