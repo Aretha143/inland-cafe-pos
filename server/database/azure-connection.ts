@@ -1,4 +1,5 @@
-import * as sql from 'mssql';
+import mssql from 'mssql';
+const sql = mssql;
 
 // Azure SQL Database configuration
 const config = {
@@ -18,17 +19,42 @@ const config = {
   },
 };
 
+// Log configuration (without sensitive data)
+console.log('🔧 Azure SQL Configuration:');
+console.log(`Server: ${config.server}`);
+console.log(`Database: ${config.database}`);
+console.log(`User: ${config.user}`);
+console.log(`Encrypt: ${config.options.encrypt}`);
+
 let pool: sql.ConnectionPool | null = null;
 
 export async function connectToAzureSQL() {
   try {
     if (!pool) {
-      pool = await sql.connect(config);
-      console.log('✅ Connected to Azure SQL Database');
+      console.log('🔗 Attempting to connect to Azure SQL Database...');
+      
+      // Check if sql module is properly loaded
+      if (!sql || !sql.ConnectionPool) {
+        throw new Error('mssql module not properly loaded');
+      }
+      
+      // Try using the connect function first, then fallback to ConnectionPool
+      try {
+        pool = await sql.connect(config);
+        console.log('✅ Connected to Azure SQL Database using sql.connect');
+      } catch (connectError) {
+        console.log('⚠️ sql.connect failed, trying ConnectionPool...');
+        pool = await new sql.ConnectionPool(config).connect();
+        console.log('✅ Connected to Azure SQL Database using ConnectionPool');
+      }
     }
     return pool;
   } catch (error) {
     console.error('❌ Error connecting to Azure SQL Database:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     throw error;
   }
 }
