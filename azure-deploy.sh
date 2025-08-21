@@ -22,9 +22,9 @@ fi
 # Configuration
 RESOURCE_GROUP="inland-cafe-pos-rg"
 APP_NAME="inland-cafe-pos"
-LOCATION="eastus"
+LOCATION="eastus"  # Student subscription friendly region
 PLAN_NAME="inland-cafe-pos-plan"
-SKU="B1"  # Basic tier - change to F1 for free tier
+SKU="F1"  # Free tier for students
 
 echo "📋 Configuration:"
 echo "   Resource Group: $RESOURCE_GROUP"

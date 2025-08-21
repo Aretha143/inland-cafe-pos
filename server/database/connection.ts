@@ -84,17 +84,17 @@ function seedInMemoryDatabase() {
 
     // Insert some sample products
     const products = [
-      ['1', 'Coffee', 'Hot coffee', '2.50', '1', 'available'],
-      ['2', 'Tea', 'Hot tea', '2.00', '1', 'available'],
-      ['3', 'Burger', 'Beef burger', '8.50', '2', 'available'],
-      ['4', 'Cake', 'Chocolate cake', '4.50', '3', 'available']
+      ['1', 'Coffee', 'Hot coffee', '2.50', '1'],
+      ['2', 'Tea', 'Hot tea', '2.00', '1'],
+      ['3', 'Burger', 'Beef burger', '8.50', '2'],
+      ['4', 'Cake', 'Chocolate cake', '4.50', '3']
     ];
 
-    products.forEach(([id, name, description, price, category_id, status]) => {
+    products.forEach(([id, name, description, price, category_id]) => {
       db.prepare(`
-        INSERT OR IGNORE INTO products (id, name, description, price, category_id, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run([id, name, description, price, category_id, status, new Date().toISOString(), new Date().toISOString()]);
+        INSERT OR IGNORE INTO products (id, name, description, price, category_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run([id, name, description, price, category_id, new Date().toISOString(), new Date().toISOString()]);
     });
 
     console.log('In-memory database seeded with sample data');
