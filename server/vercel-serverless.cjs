@@ -15,6 +15,16 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files
 app.use(express.static(path.join(__dirname, '../dist')));
 
+// Handle favicon.ico specifically
+app.get('/favicon.ico', (req, res) => {
+  try {
+    res.sendFile(path.join(__dirname, '../dist/favicon.ico'));
+  } catch (error) {
+    // If favicon doesn't exist, return 204 (No Content)
+    res.status(204).end();
+  }
+});
+
 // Simple in-memory data store for serverless environment
 const memoryStore = {
   users: [
