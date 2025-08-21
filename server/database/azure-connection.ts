@@ -191,32 +191,63 @@ async function seedAzureSQLData() {
       return;
     }
 
-    // Insert sample users
+    // Import bcrypt for password hashing
+    const bcrypt = await import('bcryptjs');
+    
+    // Insert sample users with proper password hashes
+    const adminPassword = await bcrypt.hash('admin123', 10);
+    const cashierPassword = await bcrypt.hash('cashier123', 10);
+    
     await executeNonQuery(`
       INSERT INTO users (username, email, password_hash, role, full_name)
-      VALUES ('admin', 'admin@inlandcafe.com', '$2a$10$dummy.hash.for.demo', 'admin', 'Administrator')
-    `);
+      VALUES 
+        ('admin', 'admin@inlandcafe.com', ?, 'admin', 'Administrator'),
+        ('cashier', 'cashier@inlandcafe.com', ?, 'cashier', 'Cashier User')
+    `, [adminPassword, cashierPassword]);
 
     // Insert sample categories
     await executeNonQuery(`
       INSERT INTO categories (name, description, color)
       VALUES 
-        ('Beverages', 'Hot and cold drinks', '#3B82F6'),
-        ('Food', 'Main dishes and snacks', '#10B981'),
-        ('Desserts', 'Sweet treats and cakes', '#F59E0B')
+        ('Coffee', 'Hot and cold coffee beverages', '#8B4513'),
+        ('Tea', 'Various tea selections', '#228B22'),
+        ('Pastries', 'Fresh baked goods', '#DAA520'),
+        ('Sandwiches', 'Fresh sandwiches and wraps', '#CD853F'),
+        ('Desserts', 'Sweet treats and desserts', '#FF69B4'),
+        ('Beverages', 'Non-coffee beverages', '#4169E1')
     `);
 
     // Insert sample products
     await executeNonQuery(`
-      INSERT INTO products (name, description, price, category_id)
+      INSERT INTO products (name, description, price, cost, category_id, stock_quantity, sku)
       VALUES 
-        ('Coffee', 'Hot coffee', 2.50, 1),
-        ('Tea', 'Hot tea', 2.00, 1),
-        ('Burger', 'Beef burger', 8.50, 2),
-        ('Cake', 'Chocolate cake', 4.50, 3)
+        ('Espresso', 'Rich and bold espresso shot', 330, 105, 1, 100, 'SKU-ESPRESSO'),
+        ('Americano', 'Espresso with hot water', 395, 120, 1, 100, 'SKU-AMERICANO'),
+        ('Cappuccino', 'Espresso with steamed milk foam', 525, 160, 1, 100, 'SKU-CAPPUCCINO'),
+        ('Nepali Milk Tea', 'Traditional spiced milk tea', 120, 35, 2, 50, 'SKU-NEPALITEA'),
+        ('Croissant', 'Buttery French pastry', 460, 130, 3, 20, 'SKU-CROISSANT'),
+        ('Chicken Sandwich', 'Grilled chicken sandwich', 850, 320, 4, 10, 'SKU-CHICKENSANDWICH'),
+        ('Cheesecake Slice', 'Rich New York style cheesecake', 720, 235, 5, 8, 'SKU-CHEESECAKE'),
+        ('Fresh Orange Juice', 'Fresh squeezed orange juice', 490, 160, 6, 20, 'SKU-ORANGEJUICE')
+    `);
+
+    // Insert sample tables
+    await executeNonQuery(`
+      INSERT INTO tables (table_number, table_name, capacity, location, status)
+      VALUES 
+        ('T01', 'Window Table 1', 2, 'indoor', 'available'),
+        ('T02', 'Window Table 2', 2, 'indoor', 'available'),
+        ('T03', 'Corner Booth', 4, 'indoor', 'available'),
+        ('T04', 'Center Table', 4, 'indoor', 'available'),
+        ('T05', 'Large Table', 6, 'indoor', 'available'),
+        ('O01', 'Garden View', 4, 'outdoor', 'available'),
+        ('O02', 'Patio Table', 4, 'outdoor', 'available')
     `);
 
     console.log('✅ Azure SQL Database seeded with sample data');
+    console.log('Default login credentials:');
+    console.log('Admin - Username: admin, Password: admin123');
+    console.log('Cashier - Username: cashier, Password: cashier123');
   } catch (error) {
     console.error('❌ Error seeding Azure SQL data:', error);
   }

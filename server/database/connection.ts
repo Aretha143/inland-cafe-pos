@@ -30,7 +30,24 @@ if (!useAzureSQL) {
   initializeDatabase();
 } else {
   console.log('🔗 Using Azure SQL Database');
-  // Azure SQL will be initialized separately
+  // Initialize Azure SQL Database
+  initializeAzureSQL();
+}
+
+// Initialize Azure SQL Database
+async function initializeAzureSQL() {
+  try {
+    const { initializeAzureSQLSchema } = await import('./azure-connection.js');
+    await initializeAzureSQLSchema();
+    console.log('✅ Azure SQL Database initialized successfully');
+  } catch (error) {
+    console.error('❌ Error initializing Azure SQL Database:', error);
+    // Fallback to SQLite if Azure SQL fails
+    console.log('🔄 Falling back to SQLite database...');
+    db = new Database(dbPath);
+    db.pragma('foreign_keys = ON');
+    initializeDatabase();
+  }
 }
 
 // Initialize database with schema
@@ -118,84 +135,124 @@ function seedInMemoryDatabase() {
 // Utility functions for database operations
 export const dbUtils = {
   // Run a query and return result info
-  run: (sql: string, params: any[] = []): Promise<{ lastID?: number; changes: number }> => {
-    return new Promise((resolve, reject) => {
+  run: async (sql: string, params: any[] = []): Promise<{ lastID?: number; changes: number }> => {
+    if (useAzureSQL) {
       try {
-        if (!db) {
-          reject(new Error('Database not initialized'));
-          return;
-        }
-        const stmt = db.prepare(sql);
-        const result = stmt.run(params);
-        resolve({
-          lastID: result.lastInsertRowid as number,
-          changes: result.changes
-        });
+        const { executeNonQuery } = await import('./azure-connection.js');
+        const changes = await executeNonQuery(sql, params);
+        return { changes };
       } catch (error) {
-        reject(error);
+        throw error;
       }
-    });
+    } else {
+      return new Promise((resolve, reject) => {
+        try {
+          if (!db) {
+            reject(new Error('Database not initialized'));
+            return;
+          }
+          const stmt = db.prepare(sql);
+          const result = stmt.run(params);
+          resolve({
+            lastID: result.lastInsertRowid as number,
+            changes: result.changes
+          });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
   },
 
   // Get a single row
-  get: <T = any>(sql: string, params: any[] = []): Promise<T | undefined> => {
-    return new Promise((resolve, reject) => {
+  get: async <T = any>(sql: string, params: any[] = []): Promise<T | undefined> => {
+    if (useAzureSQL) {
       try {
-        if (!db) {
-          reject(new Error('Database not initialized'));
-          return;
-        }
-        const stmt = db.prepare(sql);
-        const result = stmt.get(params) as T;
-        resolve(result);
+        const { executeQuery } = await import('./azure-connection.js');
+        const results = await executeQuery(sql, params);
+        return results[0] as T;
       } catch (error) {
-        reject(error);
+        throw error;
       }
-    });
+    } else {
+      return new Promise((resolve, reject) => {
+        try {
+          if (!db) {
+            reject(new Error('Database not initialized'));
+            return;
+          }
+          const stmt = db.prepare(sql);
+          const result = stmt.get(params) as T;
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
   },
 
   // Get all rows
-  all: <T = any>(sql: string, params: any[] = []): Promise<T[]> => {
-    return new Promise((resolve, reject) => {
+  all: async <T = any>(sql: string, params: any[] = []): Promise<T[]> => {
+    if (useAzureSQL) {
       try {
-        if (!db) {
-          reject(new Error('Database not initialized'));
-          return;
-        }
-        const stmt = db.prepare(sql);
-        const result = stmt.all(params) as T[];
-        resolve(result);
+        const { executeQuery } = await import('./azure-connection.js');
+        const results = await executeQuery(sql, params);
+        return results as T[];
       } catch (error) {
-        reject(error);
+        throw error;
       }
-    });
+    } else {
+      return new Promise((resolve, reject) => {
+        try {
+          if (!db) {
+            reject(new Error('Database not initialized'));
+            return;
+          }
+          const stmt = db.prepare(sql);
+          const result = stmt.all(params) as T[];
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
   },
 
   // Execute multiple statements in a transaction
   transaction: async (operations: (() => Promise<any>)[]): Promise<any[]> => {
-    if (!db) {
-      throw new Error('Database not initialized');
-    }
-    
-    const transaction = db.transaction(() => {
-      const results: any[] = [];
-      for (const operation of operations) {
-        // Note: In better-sqlite3, we need to handle this synchronously within the transaction
-        // For now, we'll execute operations directly
-        results.push(operation);
-      }
-      return results;
-    });
-    
-    try {
+    if (useAzureSQL) {
+      // For Azure SQL, execute operations sequentially
       const results = [];
       for (const operation of operations) {
         const result = await operation();
         results.push(result);
       }
       return results;
-    } catch (error) {
-      throw error;
+    } else {
+      if (!db) {
+        throw new Error('Database not initialized');
+      }
+      
+      const transaction = db.transaction(() => {
+        const results: any[] = [];
+        for (const operation of operations) {
+          // Note: In better-sqlite3, we need to handle this synchronously within the transaction
+          // For now, we'll execute operations directly
+          results.push(operation);
+        }
+        return results;
+      });
+      
+      try {
+        const results = [];
+        for (const operation of operations) {
+          const result = await operation();
+          results.push(result);
+        }
+        return results;
+      } catch (error) {
+        throw error;
+      }
     }
   }
 };
