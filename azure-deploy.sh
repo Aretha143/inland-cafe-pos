@@ -45,13 +45,13 @@ az appservice plan create \
     --sku $SKU \
     --is-linux
 
-# Create web app
+# Create web app with GitHub Actions compatible runtime
 echo "🌐 Creating web app..."
 az webapp create \
     --name $APP_NAME \
     --resource-group $RESOURCE_GROUP \
     --plan $PLAN_NAME \
-    --runtime "NODE|18-lts"
+    --runtime "NODE:18-lts"
 
 # Configure environment variables
 echo "⚙️ Configuring environment variables..."
@@ -60,21 +60,37 @@ az webapp config appsettings set \
     --name $APP_NAME \
     --settings \
     NODE_ENV=production \
-    PORT=8080
+    PORT=8080 \
+    WEBSITE_NODE_DEFAULT_VERSION=18.17.0
 
-# Build the application
-echo "🔨 Building the application..."
-npm run build
-
-# Deploy the application
-echo "📤 Deploying to Azure..."
-az webapp deployment source config-zip \
+# Configure startup command
+echo "🔧 Configuring startup command..."
+az webapp config set \
     --resource-group $RESOURCE_GROUP \
     --name $APP_NAME \
-    --src dist.zip
+    --startup-file "npm start"
 
-echo "✅ Deployment completed!"
-echo "🌐 Your app is available at: https://$APP_NAME.azurewebsites.net"
+# Enable GitHub Actions deployment
+echo "🔗 Enabling GitHub Actions deployment..."
+az webapp deployment source config \
+    --resource-group $RESOURCE_GROUP \
+    --name $APP_NAME \
+    --repo-url "https://github.com/Aretha143/inland-cafe-pos.git" \
+    --branch "main" \
+    --manual-integration
+
+echo "✅ Azure App Service configured successfully!"
+echo ""
+echo "🌐 Your app will be available at: https://$APP_NAME.azurewebsites.net"
+echo ""
+echo "📋 Next steps:"
+echo "1. Go to Azure Portal: https://portal.azure.com"
+echo "2. Navigate to your App Service: $APP_NAME"
+echo "3. Go to 'Deployment Center'"
+echo "4. Select 'GitHub Actions' as deployment source"
+echo "5. Connect your GitHub repository: Aretha143/inland-cafe-pos"
+echo "6. Select branch: main"
+echo "7. Deploy!"
 echo ""
 echo "📊 To monitor your app:"
 echo "   az webapp log tail --name $APP_NAME --resource-group $RESOURCE_GROUP"
