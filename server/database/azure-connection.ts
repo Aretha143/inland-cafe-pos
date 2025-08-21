@@ -1,4 +1,4 @@
-import mssql from 'mssql';
+import mssql, { ConnectionPool } from 'mssql';
 const sql = mssql;
 
 // Azure SQL Database configuration
@@ -26,7 +26,7 @@ console.log(`Database: ${config.database}`);
 console.log(`User: ${config.user}`);
 console.log(`Encrypt: ${config.options.encrypt}`);
 
-let pool: sql.ConnectionPool | null = null;
+let pool: ConnectionPool | null = null;
 
 export async function connectToAzureSQL() {
   try {
