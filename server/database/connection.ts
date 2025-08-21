@@ -6,20 +6,32 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Check if we should use Azure SQL Database
+const useAzureSQL = process.env.USE_AZURE_SQL === 'true' && 
+                   process.env.AZURE_SQL_SERVER && 
+                   process.env.AZURE_SQL_DATABASE && 
+                   process.env.AZURE_SQL_USER && 
+                   process.env.AZURE_SQL_PASSWORD;
+
 // Use in-memory database for serverless environments (Vercel)
 const isServerless = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
 const dbPath = isServerless ? ':memory:' : join(__dirname, 'pos.db');
 
-// Create database connection
-export const db = new Database(dbPath);
+// Create database connection (only if not using Azure SQL)
+let db: Database.Database | null = null;
 
-// Enable foreign key constraints
-db.pragma('foreign_keys = ON');
-
-console.log(`Connected to SQLite database: ${isServerless ? 'in-memory' : 'file-based'}`);
-
-// Initialize database schema
-initializeDatabase();
+if (!useAzureSQL) {
+  db = new Database(dbPath);
+  // Enable foreign key constraints
+  db.pragma('foreign_keys = ON');
+  console.log(`Connected to SQLite database: ${isServerless ? 'in-memory' : 'file-based'}`);
+  
+  // Initialize database schema
+  initializeDatabase();
+} else {
+  console.log('🔗 Using Azure SQL Database');
+  // Azure SQL will be initialized separately
+}
 
 // Initialize database with schema
 function initializeDatabase() {
@@ -30,7 +42,7 @@ function initializeDatabase() {
     
     // Execute schema - better-sqlite3 handles this more simply
     try {
-      db.exec(schema);
+      db!.exec(schema);
       console.log('Database schema initialized successfully');
       
       // If using in-memory database, seed with some basic data
@@ -55,7 +67,7 @@ function seedInMemoryDatabase() {
   try {
     // Insert a default admin user
     const adminPassword = '$2a$10$rQZ8N3YqX2vB1cD4eF5gH6iJ7kL8mN9oP0qR1sT2uV3wX4yZ5aB6cD7eF8gH9iJ';
-    db.prepare(`
+    db!.prepare(`
       INSERT OR IGNORE INTO users (id, username, email, password_hash, role, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run([
@@ -76,7 +88,7 @@ function seedInMemoryDatabase() {
     ];
 
     categories.forEach(([id, name, description]) => {
-      db.prepare(`
+      db!.prepare(`
         INSERT OR IGNORE INTO categories (id, name, description, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?)
       `).run([id, name, description, new Date().toISOString(), new Date().toISOString()]);
@@ -91,7 +103,7 @@ function seedInMemoryDatabase() {
     ];
 
     products.forEach(([id, name, description, price, category_id]) => {
-      db.prepare(`
+      db!.prepare(`
         INSERT OR IGNORE INTO products (id, name, description, price, category_id, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).run([id, name, description, price, category_id, new Date().toISOString(), new Date().toISOString()]);
@@ -109,6 +121,10 @@ export const dbUtils = {
   run: (sql: string, params: any[] = []): Promise<{ lastID?: number; changes: number }> => {
     return new Promise((resolve, reject) => {
       try {
+        if (!db) {
+          reject(new Error('Database not initialized'));
+          return;
+        }
         const stmt = db.prepare(sql);
         const result = stmt.run(params);
         resolve({
@@ -125,6 +141,10 @@ export const dbUtils = {
   get: <T = any>(sql: string, params: any[] = []): Promise<T | undefined> => {
     return new Promise((resolve, reject) => {
       try {
+        if (!db) {
+          reject(new Error('Database not initialized'));
+          return;
+        }
         const stmt = db.prepare(sql);
         const result = stmt.get(params) as T;
         resolve(result);
@@ -138,6 +158,10 @@ export const dbUtils = {
   all: <T = any>(sql: string, params: any[] = []): Promise<T[]> => {
     return new Promise((resolve, reject) => {
       try {
+        if (!db) {
+          reject(new Error('Database not initialized'));
+          return;
+        }
         const stmt = db.prepare(sql);
         const result = stmt.all(params) as T[];
         resolve(result);
@@ -149,6 +173,10 @@ export const dbUtils = {
 
   // Execute multiple statements in a transaction
   transaction: async (operations: (() => Promise<any>)[]): Promise<any[]> => {
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+    
     const transaction = db.transaction(() => {
       const results: any[] = [];
       for (const operation of operations) {
@@ -175,12 +203,15 @@ export const dbUtils = {
 // Close database connection gracefully
 process.on('SIGINT', () => {
   try {
-    db.close();
-    console.log('Database connection closed');
+    if (db) {
+      db.close();
+      console.log('Database connection closed');
+    }
   } catch (err) {
     console.error('Error closing database:', err);
   }
   process.exit(0);
 });
 
+export { db };
 export default db;
