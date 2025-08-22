@@ -10,7 +10,8 @@ const categoriesRoutes = require('./routes/categories');
 const ordersRoutes = require('./routes/orders');
 const tablesRoutes = require('./routes/tables');
 const customersRoutes = require('./routes/customers');
-const reportsRoutes = require('./routes/reports');
+const permissionsRoutes = require('./routes/permissions');
+const usersRoutes = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -27,7 +28,8 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/tables', tablesRoutes);
 app.use('/api/customers', customersRoutes);
-app.use('/api/reports', reportsRoutes);
+app.use('/api/permissions', permissionsRoutes);
+app.use('/api/users', usersRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
