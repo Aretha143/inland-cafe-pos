@@ -1,0 +1,20 @@
+# Azure SQL Database Configuration for Render
+# Copy these environment variables to your Render dashboard
+
+AZURE_SQL_SERVER=ilandcafe.database.windows.net
+AZURE_SQL_DATABASE=inland-cafe-pos-db
+AZURE_SQL_USER=CloudSA2b0b786c
+AZURE_SQL_PASSWORD=mManeeshMM@234
+
+# Application Configuration
+NODE_ENV=production
+PORT=10000
+JWT_SECRET=inland-cafe-pos-secret-2024
+
+# Instructions:
+# 1. Go to your Render dashboard: https://dashboard.render.com
+# 2. Select your web service
+# 3. Go to 'Environment' tab
+# 4. Add each variable above as a new environment variable
+# 5. Click 'Save Changes'
+# 6. Redeploy your application

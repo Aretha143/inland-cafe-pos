@@ -1,198 +1,153 @@
-# Azure SQL Database with Render Deployment Guide
+# Azure SQL Database to Render Connection Guide
 
-## 🎯 **Overview**
-This guide shows you how to use Azure SQL Database with your Render deployment, giving you the best of both worlds:
-- **Render**: Excellent deployment platform
-- **Azure SQL**: Robust, scalable database
+## 🔗 **Connecting Azure SQL Database to Render Web Service**
 
-## ✅ **Benefits**
-- **Data Persistence**: Your data won't be lost when the server restarts
-- **Better Performance**: Dedicated database vs. in-memory storage
-- **Scalability**: Azure SQL can handle growth
-- **Backup & Recovery**: Automatic backups and point-in-time recovery
-- **Security**: Enterprise-grade security features
+This guide will help you connect your Azure SQL database to your Render web service.
 
-## 🗄️ **Step 1: Create Azure SQL Database**
+## 📋 **Prerequisites**
 
-### **1.1 Go to Azure Portal**
-1. Visit [portal.azure.com](https://portal.azure.com)
-2. Sign in with your Azure account
+- ✅ Active Azure SQL Database
+- ✅ Active Render web service
+- ✅ Azure SQL Database connection details
 
-### **1.2 Create SQL Database**
-1. Click **"Create a resource"**
-2. Search for **"SQL Database"**
-3. Click **"Create"**
+## 🚀 **Step 1: Get Azure SQL Connection Details**
 
-### **1.3 Configure Database**
-- **Subscription**: Your Azure subscription
-- **Resource group**: Create new or use existing
-- **Database name**: `inland-cafe-pos-db`
-- **Server**: Create new server
-  - **Server name**: `inland-cafe-pos-server` (must be unique)
-  - **Location**: Choose a region close to you
-  - **Authentication method**: **SQL authentication**
-  - **Server admin login**: `admin` (or your preferred username)
-  - **Password**: Create a strong password (save this!)
-- **Compute + storage**: **Basic** (free tier for students)
-- **Backup storage redundancy**: **Locally redundant storage**
+1. **Go to Azure Portal**: https://portal.azure.com
+2. **Navigate to your SQL Database**
+3. **Click on "Connection strings"** in the left menu
+4. **Copy the connection details**:
+   - Server name
+   - Database name
+   - Username
+   - Password
 
-### **1.4 Get Connection Details**
-After creation, go to your database and note:
-- **Server name**: `your-server.database.windows.net`
-- **Database name**: `inland-cafe-pos-db`
-- **Username**: `admin` (or what you chose)
-- **Password**: The password you created
+## 🔥 **Step 2: Configure Azure SQL Firewall**
 
-## 🔧 **Step 2: Configure Render Environment Variables**
+You need to allow Render's IP addresses to access your database:
 
-### **2.1 Go to Render Dashboard**
-1. Visit [dashboard.render.com](https://dashboard.render.com)
-2. Select your **inland-cafe-pos** service
+### **Option A: Allow All Azure Services (Recommended for development)**
+1. Go to your SQL Database in Azure Portal
+2. Click **"Networking"** in the left menu
+3. Under **"Firewall rules"**, enable **"Allow Azure services and resources to access this server"**
+4. Click **"Save"**
 
-### **2.2 Add Environment Variables**
-Go to **"Environment"** tab and add these variables:
+### **Option B: Add Specific IP Ranges (More secure)**
+1. Go to your SQL Database in Azure Portal
+2. Click **"Networking"** in the left menu
+3. Under **"Firewall rules"**, click **"Add your client IPv4 address"**
+4. **Add Render's IP ranges** (you may need to contact Render support for current IPs)
+5. Click **"Save"**
+
+## ⚙️ **Step 3: Configure Render Environment Variables**
+
+1. **Go to your Render dashboard**: https://dashboard.render.com
+2. **Select your web service**
+3. **Go to "Environment"** tab
+4. **Add these environment variables**:
 
 ```bash
-USE_AZURE_SQL=true
+# Azure SQL Database Configuration
 AZURE_SQL_SERVER=your-server.database.windows.net
-AZURE_SQL_DATABASE=inland-cafe-pos-db
-AZURE_SQL_USER=admin
-AZURE_SQL_PASSWORD=your-password-here
+AZURE_SQL_DATABASE=your-database-name
+AZURE_SQL_USER=your-username
+AZURE_SQL_PASSWORD=your-password
+
+# Application Configuration
+NODE_ENV=production
+PORT=10000
+JWT_SECRET=your-secure-jwt-secret
 ```
 
-### **2.3 Redeploy**
-Click **"Manual Deploy"** → **"Deploy latest commit**
+## 🔧 **Step 4: Update Your Application Code**
 
-## 🚀 **Step 3: Test Your Setup**
+Your application is already configured to use Azure SQL. The connection is handled in `server/database/azure-connection.ts`.
 
-### **3.1 Check Logs**
-After deployment, check the logs to see:
-```
-🔗 Using Azure SQL Database
-✅ Connected to Azure SQL Database
-✅ Azure SQL Database schema initialized successfully
-✅ Azure SQL Database seeded with sample data
-```
+## 🚀 **Step 5: Deploy to Render**
 
-### **3.2 Test Your Application**
-Visit your Render URL and test:
-- Login with `admin` / `admin`
-- Create categories and products
-- Place orders
-- Check that data persists after page refresh
-
-## 🔒 **Step 4: Security Best Practices**
-
-### **4.1 Firewall Rules**
-In Azure Portal → Your SQL Database → **"Networking"**:
-1. Add your IP address to allow connections
-2. Or set **"Allow Azure services and resources to access this server"** to **Yes**
-
-### **4.2 Connection String Security**
-- Never commit passwords to Git
-- Use environment variables in Render
-- Rotate passwords regularly
-
-## 📊 **Step 5: Monitor Your Database**
-
-### **5.1 Azure Portal Monitoring**
-- **Overview**: Check database status and performance
-- **Query Performance Insight**: Monitor slow queries
-- **Metrics**: Track usage and performance
-
-### **5.2 Render Monitoring**
-- **Logs**: Check application logs for database errors
-- **Metrics**: Monitor response times and errors
-
-## 🛠️ **Troubleshooting**
-
-### **Common Issues**
-
-#### **Connection Timeout**
-```
-Error: Connection timeout
-```
-**Solution**: Check firewall rules in Azure SQL Database
-
-#### **Authentication Failed**
-```
-Error: Login failed for user 'admin'
-```
-**Solution**: Verify username and password in environment variables
-
-#### **Schema Initialization Failed**
-```
-Error: Cannot create table
-```
-**Solution**: Check if tables already exist, the script handles this automatically
-
-### **Fallback to SQLite**
-If Azure SQL doesn't work, you can fallback to SQLite by:
-1. Remove the `USE_AZURE_SQL=true` environment variable
-2. Redeploy your application
-
-## 💰 **Cost Management**
-
-### **Azure SQL Database Costs**
-- **Basic Tier**: Free for students (limited to 5 DTUs)
-- **Standard Tier**: ~$5-15/month
-- **Premium Tier**: $465+/month
-
-### **Cost Optimization**
-1. Start with Basic tier
-2. Monitor usage in Azure Portal
-3. Scale up only when needed
-4. Use auto-pause for development databases
-
-## 🔄 **Migration from SQLite to Azure SQL**
-
-If you have existing data in SQLite:
-
-### **Export SQLite Data**
+1. **Push your changes to GitHub**:
 ```bash
-# In your local development environment
-sqlite3 server/database/pos.db ".dump" > backup.sql
+git add .
+git commit -m "Configure Azure SQL connection for Render"
+git push origin main
 ```
 
-### **Import to Azure SQL**
-1. Connect to Azure SQL Database
-2. Run the exported SQL commands
-3. Verify data integrity
+2. **Render will automatically deploy** your updated application
 
-## 📈 **Scaling Considerations**
+## 🧪 **Step 6: Test the Connection**
 
-### **When to Scale Up**
-- High CPU usage (>80%)
-- Slow query performance
-- Connection pool exhaustion
-- Storage approaching limits
+1. **Check Render logs** for connection status
+2. **Test your API endpoints** to ensure database operations work
+3. **Verify data persistence** by creating test records
 
-### **Scaling Options**
-1. **Scale Up**: Increase DTUs/vCores
-2. **Scale Out**: Read replicas for read-heavy workloads
-3. **Partitioning**: Split large tables
+## 🔍 **Troubleshooting**
 
-## 🎉 **Success Indicators**
+### **Issue: Connection Timeout**
+**Solution**: 
+- Check firewall rules in Azure
+- Verify connection string format
+- Ensure database is running
 
-You'll know it's working when you see:
-- ✅ Database connection successful
-- ✅ Schema initialized
-- ✅ Sample data loaded
-- ✅ Application functions normally
-- ✅ Data persists across deployments
+### **Issue: Authentication Failed**
+**Solution**:
+- Verify username and password
+- Check if user has proper permissions
+- Ensure user exists in Azure SQL
+
+### **Issue: SSL/TLS Error**
+**Solution**:
+- Azure SQL requires encrypted connections
+- Your code already has `encrypt: true` configured
+
+### **Issue: Database Not Found**
+**Solution**:
+- Verify database name
+- Check if database exists
+- Ensure user has access to the database
+
+## 📊 **Monitoring**
+
+### **Azure SQL Monitoring**
+1. Go to Azure Portal
+2. Check **"Metrics"** for connection statistics
+3. Review **"Query Performance Insights"**
+
+### **Render Monitoring**
+1. Check **"Logs"** in Render dashboard
+2. Monitor **"Metrics"** for performance
+3. Set up **alerts** for errors
+
+## 🔐 **Security Best Practices**
+
+1. **Use Azure Key Vault** for storing sensitive connection strings
+2. **Enable Azure SQL Auditing** for security monitoring
+3. **Use Azure Active Directory** authentication when possible
+4. **Regularly rotate passwords**
+5. **Enable threat detection** in Azure SQL
+
+## 📈 **Performance Optimization**
+
+1. **Use connection pooling** (already configured in your code)
+2. **Optimize queries** for better performance
+3. **Monitor query performance** in Azure Portal
+4. **Consider read replicas** for read-heavy workloads
+
+## 🎯 **Expected Results**
+
+After successful connection:
+- ✅ Database operations working on Render
+- ✅ Data persistence across deployments
+- ✅ All POS functionality operational
+- ✅ Real-time data synchronization
 
 ## 📞 **Support**
 
-### **Azure SQL Issues**
-- Azure Portal → Help + Support
-- Microsoft Documentation
-- Azure Community Forums
-
-### **Render Issues**
-- Render Dashboard → Support
-- Render Documentation
-- Render Community
+If you encounter issues:
+1. Check Azure SQL firewall rules
+2. Verify environment variables in Render
+3. Review application logs
+4. Test connection locally first
 
 ---
 
-**🎯 Your POS system is now running on Render with Azure SQL Database - the best of both worlds!**
+**Status**: ✅ Ready for Azure SQL to Render connection
+**Last Updated**: August 21, 2025
