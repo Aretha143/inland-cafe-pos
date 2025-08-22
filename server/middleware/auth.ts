@@ -13,6 +13,10 @@ export interface AuthRequest extends Request {
     email?: string;
     password_hash?: string;
   };
+  body?: any;
+  params?: any;
+  query?: any;
+  headers?: any;
 }
 
 export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
