@@ -9,6 +9,7 @@
     "client": "vite",
     "build": "vite build",
     "start": "npm run build && node server/index.js",
+    "render-start": "npm run build && node server/index.js",
     "preview": "vite preview",
     "test": "vitest",
     "db:migrate": "tsx server/scripts/migrate.ts",
