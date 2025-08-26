@@ -39,8 +39,8 @@ RUN npm install --only=production && npm cache clean --force
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server ./server
 
-# Copy database file (if it exists)
-COPY --from=builder /app/database.db ./database.db
+# Copy database schema file
+COPY --from=builder /app/server/database/schema.sql ./server/database/schema.sql
 
 # Change ownership to nodejs user
 RUN chown -R nodejs:nodejs /app
