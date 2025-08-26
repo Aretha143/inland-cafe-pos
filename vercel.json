@@ -2,25 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "server/vercel-serverless.cjs",
+      "src": "server/index.js",
       "use": "@vercel/node"
-    },
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
     }
   ],
   "routes": [
     {
-      "src": "/favicon.ico",
-      "dest": "/dist/favicon.ico"
-    },
-    {
       "src": "/api/(.*)",
-      "dest": "/server/vercel-serverless.cjs"
+      "dest": "server/index.js"
     },
     {
       "src": "/(.*)",
@@ -28,11 +17,7 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
-  },
-  "functions": {
-    "server/vercel-serverless.cjs": {
-      "maxDuration": 30
-    }
+    "NODE_ENV": "production",
+    "JWT_SECRET": "inland-cafe-pos-secret-2024"
   }
 }
