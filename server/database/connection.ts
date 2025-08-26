@@ -18,12 +18,34 @@ const isServerless = process.env.VERCEL === '1' || process.env.NODE_ENV === 'pro
 const dbPath = isServerless ? ':memory:' : join(__dirname, 'pos.db');
 
 // Create database connection (only if not using Azure SQL)
-let db: Database.Database | null = null;
+let db: any = null;
+let useBetterSqlite3 = true;
 
 if (!useAzureSQL) {
-  db = new Database(dbPath);
-  // Enable foreign key constraints
-  db.pragma('foreign_keys = ON');
+  try {
+    // Try to use better-sqlite3 first
+    db = new Database(dbPath);
+    useBetterSqlite3 = true;
+    console.log('✅ Using better-sqlite3');
+  } catch (error) {
+    console.log('⚠️ better-sqlite3 failed, falling back to sqlite3');
+    try {
+      // Fallback to sqlite3
+      const sqlite3 = require('sqlite3').verbose();
+      db = new sqlite3.Database(dbPath);
+      useBetterSqlite3 = false;
+      console.log('✅ Using sqlite3 fallback');
+    } catch (fallbackError) {
+      console.error('❌ Both better-sqlite3 and sqlite3 failed:', fallbackError);
+      throw fallbackError;
+    }
+  }
+  
+  if (useBetterSqlite3) {
+    // Enable foreign key constraints for better-sqlite3
+    db.pragma('foreign_keys = ON');
+  }
+  
   console.log(`Connected to SQLite database: ${isServerless ? 'in-memory' : 'file-based'}`);
   
   // Initialize database schema
@@ -57,22 +79,42 @@ function initializeDatabase() {
   try {
     const schema = fs.readFileSync(schemaPath, 'utf8');
     
-    // Execute schema - better-sqlite3 handles this more simply
-    try {
-      db!.exec(schema);
-      console.log('Database schema initialized successfully');
-      
-      // If using in-memory database, seed with some basic data
-      if (isServerless) {
-        seedInMemoryDatabase();
+    if (useBetterSqlite3) {
+      // Execute schema - better-sqlite3 handles this more simply
+      try {
+        db!.exec(schema);
+        console.log('Database schema initialized successfully');
+        
+        // If using in-memory database, seed with some basic data
+        if (isServerless) {
+          seedInMemoryDatabase();
+        }
+      } catch (err: any) {
+        // Check if it's just because tables already exist
+        if (err.message.includes('already exists') || err.message.includes('duplicate column name')) {
+          console.log('Database schema already exists, skipping initialization');
+        } else {
+          console.error('Error executing schema:', err.message);
+        }
       }
-    } catch (err: any) {
-      // Check if it's just because tables already exist
-      if (err.message.includes('already exists') || err.message.includes('duplicate column name')) {
-        console.log('Database schema already exists, skipping initialization');
-      } else {
-        console.error('Error executing schema:', err.message);
-      }
+    } else {
+      // Use sqlite3
+      db.exec(schema, (err: any) => {
+        if (err) {
+          if (err.message.includes('already exists') || err.message.includes('duplicate column name')) {
+            console.log('Database schema already exists, skipping initialization');
+          } else {
+            console.error('Error executing schema:', err.message);
+          }
+        } else {
+          console.log('Database schema initialized successfully');
+          
+          // If using in-memory database, seed with some basic data
+          if (isServerless) {
+            seedInMemoryDatabase();
+          }
+        }
+      });
     }
   } catch (error) {
     console.error('Error reading schema file:', error);
@@ -84,47 +126,93 @@ function seedInMemoryDatabase() {
   try {
     // Insert a default admin user
     const adminPassword = '$2a$10$rQZ8N3YqX2vB1cD4eF5gH6iJ7kL8mN9oP0qR1sT2uV3wX4yZ5aB6cD7eF8gH9iJ';
-    db!.prepare(`
-      INSERT OR IGNORE INTO users (id, username, email, password_hash, role, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run([
-      '1',
-      'admin',
-      'admin@inlandcafe.com',
-      adminPassword,
-      'admin',
-      new Date().toISOString(),
-      new Date().toISOString()
-    ]);
-
-    // Insert some basic categories
-    const categories = [
-      ['1', 'Beverages', 'Hot and cold drinks'],
-      ['2', 'Food', 'Main dishes and snacks'],
-      ['3', 'Desserts', 'Sweet treats and pastries']
-    ];
-
-    categories.forEach(([id, name, description]) => {
+    
+    if (useBetterSqlite3) {
       db!.prepare(`
-        INSERT OR IGNORE INTO categories (id, name, description, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?)
-      `).run([id, name, description, new Date().toISOString(), new Date().toISOString()]);
-    });
-
-    // Insert some sample products
-    const products = [
-      ['1', 'Coffee', 'Hot coffee', '2.50', '1'],
-      ['2', 'Tea', 'Hot tea', '2.00', '1'],
-      ['3', 'Burger', 'Beef burger', '8.50', '2'],
-      ['4', 'Cake', 'Chocolate cake', '4.50', '3']
-    ];
-
-    products.forEach(([id, name, description, price, category_id]) => {
-      db!.prepare(`
-        INSERT OR IGNORE INTO products (id, name, description, price, category_id, created_at, updated_at)
+        INSERT OR IGNORE INTO users (id, username, email, password_hash, role, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run([id, name, description, price, category_id, new Date().toISOString(), new Date().toISOString()]);
-    });
+      `).run([
+        '1',
+        'admin',
+        'admin@inlandcafe.com',
+        adminPassword,
+        'admin',
+        new Date().toISOString(),
+        new Date().toISOString()
+      ]);
+
+      // Insert some basic categories
+      const categories = [
+        ['1', 'Beverages', 'Hot and cold drinks'],
+        ['2', 'Food', 'Main dishes and snacks'],
+        ['3', 'Desserts', 'Sweet treats and pastries']
+      ];
+
+      categories.forEach(([id, name, description]) => {
+        db!.prepare(`
+          INSERT OR IGNORE INTO categories (id, name, description, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?)
+        `).run([id, name, description, new Date().toISOString(), new Date().toISOString()]);
+      });
+
+      // Insert some sample products
+      const products = [
+        ['1', 'Coffee', 'Hot coffee', '2.50', '1'],
+        ['2', 'Tea', 'Hot tea', '2.00', '1'],
+        ['3', 'Burger', 'Beef burger', '8.50', '2'],
+        ['4', 'Cake', 'Chocolate cake', '4.50', '3']
+      ];
+
+      products.forEach(([id, name, description, price, category_id]) => {
+        db!.prepare(`
+          INSERT OR IGNORE INTO products (id, name, description, price, category_id, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run([id, name, description, price, category_id, new Date().toISOString(), new Date().toISOString()]);
+      });
+    } else {
+      // Use sqlite3
+      db.run(`
+        INSERT OR IGNORE INTO users (id, username, email, password_hash, role, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [
+        '1',
+        'admin',
+        'admin@inlandcafe.com',
+        adminPassword,
+        'admin',
+        new Date().toISOString(),
+        new Date().toISOString()
+      ]);
+
+      // Insert some basic categories
+      const categories = [
+        ['1', 'Beverages', 'Hot and cold drinks'],
+        ['2', 'Food', 'Main dishes and snacks'],
+        ['3', 'Desserts', 'Sweet treats and pastries']
+      ];
+
+      categories.forEach(([id, name, description]) => {
+        db.run(`
+          INSERT OR IGNORE INTO categories (id, name, description, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?)
+        `, [id, name, description, new Date().toISOString(), new Date().toISOString()]);
+      });
+
+      // Insert some sample products
+      const products = [
+        ['1', 'Coffee', 'Hot coffee', '2.50', '1'],
+        ['2', 'Tea', 'Hot tea', '2.00', '1'],
+        ['3', 'Burger', 'Beef burger', '8.50', '2'],
+        ['4', 'Cake', 'Chocolate cake', '4.50', '3']
+      ];
+
+      products.forEach(([id, name, description, price, category_id]) => {
+        db.run(`
+          INSERT OR IGNORE INTO products (id, name, description, price, category_id, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [id, name, description, price, category_id, new Date().toISOString(), new Date().toISOString()]);
+      });
+    }
 
     console.log('In-memory database seeded with sample data');
   } catch (error) {
@@ -151,12 +239,27 @@ export const dbUtils = {
             reject(new Error('Database not initialized'));
             return;
           }
-          const stmt = db.prepare(sql);
-          const result = stmt.run(params);
-          resolve({
-            lastID: result.lastInsertRowid as number,
-            changes: result.changes
-          });
+          
+          if (useBetterSqlite3) {
+            const stmt = db.prepare(sql);
+            const result = stmt.run(params);
+            resolve({
+              lastID: result.lastInsertRowid as number,
+              changes: result.changes
+            });
+          } else {
+            // Use sqlite3
+            db.run(sql, params, function(err: any) {
+              if (err) {
+                reject(err);
+              } else {
+                resolve({
+                  lastID: this.lastID,
+                  changes: this.changes
+                });
+              }
+            });
+          }
         } catch (error) {
           reject(error);
         }
@@ -181,9 +284,21 @@ export const dbUtils = {
             reject(new Error('Database not initialized'));
             return;
           }
-          const stmt = db.prepare(sql);
-          const result = stmt.get(params) as T;
-          resolve(result);
+          
+          if (useBetterSqlite3) {
+            const stmt = db.prepare(sql);
+            const result = stmt.get(params) as T;
+            resolve(result);
+          } else {
+            // Use sqlite3
+            db.get(sql, params, (err: any, row: T) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(row);
+              }
+            });
+          }
         } catch (error) {
           reject(error);
         }
@@ -208,9 +323,21 @@ export const dbUtils = {
             reject(new Error('Database not initialized'));
             return;
           }
-          const stmt = db.prepare(sql);
-          const result = stmt.all(params) as T[];
-          resolve(result);
+          
+          if (useBetterSqlite3) {
+            const stmt = db.prepare(sql);
+            const result = stmt.all(params) as T[];
+            resolve(result);
+          } else {
+            // Use sqlite3
+            db.all(sql, params, (err: any, rows: T[]) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(rows);
+              }
+            });
+          }
         } catch (error) {
           reject(error);
         }
@@ -233,25 +360,56 @@ export const dbUtils = {
         throw new Error('Database not initialized');
       }
       
-      const transaction = db.transaction(() => {
-        const results: any[] = [];
-        for (const operation of operations) {
-          // Note: In better-sqlite3, we need to handle this synchronously within the transaction
-          // For now, we'll execute operations directly
-          results.push(operation);
+      if (useBetterSqlite3) {
+        const transaction = db.transaction(() => {
+          const results: any[] = [];
+          for (const operation of operations) {
+            // Note: In better-sqlite3, we need to handle this synchronously within the transaction
+            // For now, we'll execute operations directly
+            results.push(operation);
+          }
+          return results;
+        });
+        
+        try {
+          const results = [];
+          for (const operation of operations) {
+            const result = await operation();
+            results.push(result);
+          }
+          return results;
+        } catch (error) {
+          throw error;
         }
-        return results;
-      });
-      
-      try {
-        const results = [];
-        for (const operation of operations) {
-          const result = await operation();
-          results.push(result);
-        }
-        return results;
-      } catch (error) {
-        throw error;
+      } else {
+        // Use sqlite3 transaction
+        return new Promise((resolve, reject) => {
+          db.serialize(() => {
+            db.run('BEGIN TRANSACTION');
+            const results: any[] = [];
+            let completed = 0;
+            
+            operations.forEach((operation, index) => {
+              operation().then(result => {
+                results[index] = result;
+                completed++;
+                if (completed === operations.length) {
+                  db.run('COMMIT', (err: any) => {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      reject(err);
+                    } else {
+                      resolve(results);
+                    }
+                  });
+                }
+              }).catch(error => {
+                db.run('ROLLBACK');
+                reject(error);
+              });
+            });
+          });
+        });
       }
     }
   }
