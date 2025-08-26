@@ -8,8 +8,7 @@
     "server": "tsx server/index.ts",
     "client": "vite",
     "build": "vite build",
-    "start": "node server/index.js",
-    "render-start": "npm run build && node server/index.js",
+    "start": "npm run build && node server/index.js",
     "preview": "vite preview",
     "test": "vitest",
     "db:migrate": "tsx server/scripts/migrate.ts",
@@ -39,6 +38,9 @@
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.35",
     "tsx": "^4.7.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
