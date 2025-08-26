@@ -16,7 +16,12 @@ import KitchenPage from './pages/KitchenPage';
 import Layout from './components/Layout';
 
 function App() {
-  const { isAuthenticated, token, getCurrentUser } = useAuthStore();
+  const { isAuthenticated, token, getCurrentUser, initializeAuth } = useAuthStore();
+
+  useEffect(() => {
+    // Initialize auth on app start
+    initializeAuth();
+  }, [initializeAuth]);
 
   useEffect(() => {
     // If we have a token but no user, try to get current user

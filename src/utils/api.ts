@@ -8,21 +8,23 @@ interface ApiResponse<T = any> {
 
 class ApiClient {
   private baseURL: string;
-  private token: string | null = null;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
-    this.token = localStorage.getItem('auth_token');
   }
 
   setToken(token: string) {
-    this.token = token;
+    // Token is now managed by the auth store
     localStorage.setItem('auth_token', token);
   }
 
   clearToken() {
-    this.token = null;
     localStorage.removeItem('auth_token');
+  }
+
+  private getToken(): string | null {
+    // Try to get token from localStorage first, then from auth store
+    return localStorage.getItem('auth_token');
   }
 
   private async request<T = any>(
@@ -36,8 +38,9 @@ class ApiClient {
       ...(options.headers as Record<string, string> || {}),
     };
 
-    if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`;
+    const token = this.getToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
     }
 
     try {
