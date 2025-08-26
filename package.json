@@ -8,7 +8,7 @@
     "server": "tsx server/index.ts",
     "client": "vite",
     "build": "vite build",
-    "start": "npm run build && node server/index.js",
+    "start": "node server/index.js",
     "render-start": "npm run build && node server/index.js",
     "preview": "vite preview",
     "test": "vitest",
