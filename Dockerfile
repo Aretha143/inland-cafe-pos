@@ -15,6 +15,7 @@ COPY . .
 
 # Build the application
 RUN npm run build
+RUN npm run build:server
 
 # Production stage
 FROM node:18-alpine AS production
@@ -37,7 +38,7 @@ RUN npm install --only=production && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/server ./server
+COPY --from=builder /app/dist/server ./server
 
 # Copy database schema file
 COPY --from=builder /app/server/database/schema.sql ./server/database/schema.sql
