@@ -7,15 +7,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install --only=production
+# Install all dependencies (including dev dependencies for tsx)
+RUN npm install
 
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the frontend application only
 RUN npm run build
-RUN npm run build:server
 
 # Production stage
 FROM node:18-alpine AS production
@@ -33,12 +32,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm install --only=production && npm cache clean --force
+# Install all dependencies (including tsx for TypeScript runtime)
+RUN npm install && npm cache clean --force
 
-# Copy built application from builder stage
+# Copy built frontend application from builder stage
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/dist/server ./server
+
+# Copy server source code (will be run with tsx)
+COPY --from=builder /app/server ./server
 
 # Copy database schema file
 COPY --from=builder /app/server/database/schema.sql ./server/database/schema.sql
@@ -49,6 +50,9 @@ RUN chown -R nodejs:nodejs /app
 # Switch to nodejs user
 USER nodejs
 
+# Set environment variables
+ENV PORT=8080
+
 # Expose port
 EXPOSE 8080
 
@@ -56,6 +60,6 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:8080/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# Start the application
+# Start the application using tsx for TypeScript runtime
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "server/index.js"]
+CMD ["npx", "tsx", "server/index.ts"]

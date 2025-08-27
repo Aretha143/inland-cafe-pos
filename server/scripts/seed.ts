@@ -1,6 +1,6 @@
-import '../database/connection.js';
-import { dbUtils } from '../database/connection.js';
-import bcrypt from 'bcryptjs';
+import '../database/connection';
+import { dbUtils } from '../database/connection';
+import * as bcrypt from 'bcryptjs';
 
 async function seedDatabase() {
   try {

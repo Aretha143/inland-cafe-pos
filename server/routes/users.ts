@@ -1,37 +1,19 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.js';
-import { requirePermission } from '../middleware/permissions.js';
 import {
   getAllUsers,
   createUser,
   updateUser,
-  deleteUser,
-  changeUserPassword,
-  toggleUserStatus
+  deleteUser
 } from '../controllers/usersController.js';
+import { requirePermission } from '../middleware/permissions.js';
+import { authenticateToken, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
-// All routes require authentication and admin role
-router.use(requireAuth);
-router.use(requirePermission('admin'));
-
-// Get all users
-router.get('/', getAllUsers);
-
-// Create new user
-router.post('/', createUser);
-
-// Update user
-router.put('/:id', updateUser);
-
-// Delete user
-router.delete('/:id', deleteUser);
-
-// Change user password
-router.post('/change-password', changeUserPassword);
-
-// Toggle user active status
-router.patch('/:id/toggle-status', toggleUserStatus);
+// Admin only routes
+router.get('/', authenticateToken, requireRole(['admin']), getAllUsers);
+router.post('/', authenticateToken, requireRole(['admin']), createUser);
+router.put('/:id', authenticateToken, requireRole(['admin']), updateUser);
+router.delete('/:id', authenticateToken, requireRole(['admin']), deleteUser);
 
 export default router;

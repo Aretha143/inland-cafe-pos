@@ -1,7 +1,8 @@
 import Database from 'better-sqlite3';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -15,10 +16,10 @@ const useAzureSQL = process.env.USE_AZURE_SQL === 'true' &&
 
 // Use in-memory database for serverless environments (Vercel)
 const isServerless = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
-const dbPath = isServerless ? ':memory:' : join(__dirname, 'pos.db');
+const dbPath = isServerless ? ':memory:' : path.join(__dirname, 'pos.db');
 
 // Create database connection (only if not using Azure SQL)
-let db: any = null;
+let db: Database | any = null;
 let useBetterSqlite3 = true;
 
 if (!useAzureSQL) {
@@ -59,7 +60,7 @@ if (!useAzureSQL) {
 // Initialize Azure SQL Database
 async function initializeAzureSQL() {
   try {
-    const { initializeAzureSQLSchema } = await import('./azure-connection.js');
+    const { initializeAzureSQLSchema } = await import('./azure-connection');
     await initializeAzureSQLSchema();
     console.log('✅ Azure SQL Database initialized successfully');
   } catch (error) {
@@ -74,7 +75,7 @@ async function initializeAzureSQL() {
 
 // Initialize database with schema
 function initializeDatabase() {
-  const schemaPath = join(__dirname, 'schema.sql');
+  const schemaPath = path.join(__dirname, 'schema.sql');
   
   try {
     const schema = fs.readFileSync(schemaPath, 'utf8');
@@ -98,8 +99,8 @@ function initializeDatabase() {
         }
       }
     } else {
-      // Use sqlite3
-      db.exec(schema, (err: any) => {
+      // Execute schema for sqlite3
+      (db as any).exec(schema, (err: any) => {
         if (err) {
           if (err.message.includes('already exists') || err.message.includes('duplicate column name')) {
             console.log('Database schema already exists, skipping initialization');
@@ -171,7 +172,7 @@ function seedInMemoryDatabase() {
       });
     } else {
       // Use sqlite3
-      db.run(`
+      (db as any).run(`
         INSERT OR IGNORE INTO users (id, username, email, password_hash, role, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `, [
@@ -192,7 +193,7 @@ function seedInMemoryDatabase() {
       ];
 
       categories.forEach(([id, name, description]) => {
-        db.run(`
+        (db as any).run(`
           INSERT OR IGNORE INTO categories (id, name, description, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?)
         `, [id, name, description, new Date().toISOString(), new Date().toISOString()]);
@@ -207,7 +208,7 @@ function seedInMemoryDatabase() {
       ];
 
       products.forEach(([id, name, description, price, category_id]) => {
-        db.run(`
+        (db as any).run(`
           INSERT OR IGNORE INTO products (id, name, description, price, category_id, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `, [id, name, description, price, category_id, new Date().toISOString(), new Date().toISOString()]);
@@ -226,7 +227,7 @@ export const dbUtils = {
   run: async (sql: string, params: any[] = []): Promise<{ lastID?: number; changes: number }> => {
     if (useAzureSQL) {
       try {
-        const { executeNonQuery } = await import('./azure-connection.js');
+        const { executeNonQuery } = await import('./azure-connection');
         const changes = await executeNonQuery(sql, params);
         return { changes };
       } catch (error) {
@@ -249,7 +250,7 @@ export const dbUtils = {
             });
           } else {
             // Use sqlite3
-            db.run(sql, params, function(err: any) {
+            (db as any).run(sql, params, function(err: any) {
               if (err) {
                 reject(err);
               } else {
@@ -271,7 +272,7 @@ export const dbUtils = {
   get: async <T = any>(sql: string, params: any[] = []): Promise<T | undefined> => {
     if (useAzureSQL) {
       try {
-        const { executeQuery } = await import('./azure-connection.js');
+        const { executeQuery } = await import('./azure-connection');
         const results = await executeQuery(sql, params);
         return results[0] as T;
       } catch (error) {
@@ -310,7 +311,7 @@ export const dbUtils = {
   all: async <T = any>(sql: string, params: any[] = []): Promise<T[]> => {
     if (useAzureSQL) {
       try {
-        const { executeQuery } = await import('./azure-connection.js');
+        const { executeQuery } = await import('./azure-connection');
         const results = await executeQuery(sql, params);
         return results as T[];
       } catch (error) {
@@ -330,7 +331,7 @@ export const dbUtils = {
             resolve(result);
           } else {
             // Use sqlite3
-            db.all(sql, params, (err: any, rows: T[]) => {
+            (db as any).all(sql, params, (err: any, rows: T[]) => {
               if (err) {
                 reject(err);
               } else {
@@ -361,16 +362,6 @@ export const dbUtils = {
       }
       
       if (useBetterSqlite3) {
-        const transaction = db.transaction(() => {
-          const results: any[] = [];
-          for (const operation of operations) {
-            // Note: In better-sqlite3, we need to handle this synchronously within the transaction
-            // For now, we'll execute operations directly
-            results.push(operation);
-          }
-          return results;
-        });
-        
         try {
           const results = [];
           for (const operation of operations) {
@@ -384,8 +375,8 @@ export const dbUtils = {
       } else {
         // Use sqlite3 transaction
         return new Promise((resolve, reject) => {
-          db.serialize(() => {
-            db.run('BEGIN TRANSACTION');
+          (db as any).serialize(() => {
+            (db as any).run('BEGIN TRANSACTION');
             const results: any[] = [];
             let completed = 0;
             
@@ -394,9 +385,9 @@ export const dbUtils = {
                 results[index] = result;
                 completed++;
                 if (completed === operations.length) {
-                  db.run('COMMIT', (err: any) => {
+                  (db as any).run('COMMIT', (err: any) => {
                     if (err) {
-                      db.run('ROLLBACK');
+                      (db as any).run('ROLLBACK');
                       reject(err);
                     } else {
                       resolve(results);
@@ -404,7 +395,7 @@ export const dbUtils = {
                   });
                 }
               }).catch(error => {
-                db.run('ROLLBACK');
+                (db as any).run('ROLLBACK');
                 reject(error);
               });
             });
@@ -419,7 +410,7 @@ export const dbUtils = {
 process.on('SIGINT', () => {
   try {
     if (db) {
-      db.close();
+      (db as any).close();
       console.log('Database connection closed');
     }
   } catch (err) {

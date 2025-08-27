@@ -1,5 +1,5 @@
-import '../database/connection.js';
-import { dbUtils } from '../database/connection.js';
+import '../database/connection';
+import { dbUtils } from '../database/connection';
 
 async function migrate() {
   try {

@@ -1,10 +1,8 @@
-import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { dbUtils } from '../database/connection.js';
-import { generateToken, AuthRequest } from '../middleware/auth.js';
-import { getUserPermissionsList } from '../middleware/permissions.js';
+import { generateToken } from '../middleware/auth.js';
 
-export const login = async (req: Request, res: Response) => {
+const login = async (req: any, res: any) => {
   try {
     const { username, password } = req.body;
 
@@ -12,7 +10,7 @@ export const login = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Username and password are required' });
     }
 
-    // Find user
+    // Get user from database
     const user = await dbUtils.get(
       'SELECT * FROM users WHERE username = ? AND is_active = 1',
       [username]
@@ -28,55 +26,48 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Update last login
-    await dbUtils.run(
-      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
-      [user.id]
-    );
-
-    // Generate token
+    // Generate JWT token
     const token = generateToken(user.id);
 
-    // Return user data (without password)
-    const { password_hash, ...userWithoutPassword } = user;
-    
+    // Return user data (without password) and token
+    const { password_hash, ...userData } = user;
     res.json({
-      user: userWithoutPassword,
+      message: 'Login successful',
+      user: userData,
       token
     });
+
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
-export const getCurrentUser = async (req: AuthRequest, res: Response) => {
+const getCurrentUser = async (req: any, res: any) => {
   try {
     if (!req.user) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return res.status(401).json({ message: 'User not authenticated' });
     }
 
+    // Get fresh user data from database
     const user = await dbUtils.get(
-      'SELECT id, username, email, role, full_name, is_active, last_login, created_at FROM users WHERE id = ?',
+      'SELECT id, username, email, role, full_name, is_active, created_at FROM users WHERE id = ?',
       [req.user.id]
     );
 
-    // Get user permissions
-    const permissions = await getUserPermissionsList(user.id, user.role);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
-    res.json({ 
-      user: {
-        ...user,
-        permissions
-      }
-    });
+    res.json({ user });
+
   } catch (error) {
     console.error('Get current user error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
-export const changePassword = async (req: AuthRequest, res: Response) => {
+const changePassword = async (req: any, res: any) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -85,7 +76,7 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
     }
 
     if (!req.user) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return res.status(401).json({ message: 'User not authenticated' });
     }
 
     // Get current user with password
@@ -107,35 +98,30 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
     // Hash new password
     const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
-    // Update password
+    // Update password in database
     await dbUtils.run(
       'UPDATE users SET password_hash = ? WHERE id = ?',
       [newPasswordHash, req.user.id]
     );
 
     res.json({ message: 'Password changed successfully' });
+
   } catch (error) {
     console.error('Change password error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
-// Admin-only functions to manage user passwords
-
-export const changeUserPassword = async (req: AuthRequest, res: Response) => {
+const changeUserPassword = async (req: any, res: any) => {
   try {
     const { userId, newPassword } = req.body;
-    
-    console.log('ADMIN: Changing user password...');
-    console.log('ADMIN: Requested by:', req.user?.role);
-    console.log('ADMIN: Target user ID:', userId);
 
     if (!userId || !newPassword) {
       return res.status(400).json({ message: 'User ID and new password are required' });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
     }
 
     // Check if target user exists
@@ -149,54 +135,43 @@ export const changeUserPassword = async (req: AuthRequest, res: Response) => {
     }
 
     // Hash new password
-    const saltRounds = 12;
+    const saltRounds = 10;
     const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
 
-    // Update password
+    // Update password in database
     await dbUtils.run(
       'UPDATE users SET password_hash = ? WHERE id = ?',
       [newPasswordHash, userId]
     );
 
-    console.log(`ADMIN: Password changed successfully for user: ${targetUser.username}`);
+    res.json({ message: 'User password changed successfully' });
 
-    res.json({ 
-      message: `Password changed successfully for user: ${targetUser.username}`,
-      success: true
-    });
   } catch (error) {
-    console.error('ADMIN: Change user password error:', error);
+    console.error('Change user password error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
-export const changeAdminPassword = async (req: AuthRequest, res: Response) => {
+const changeAdminPassword = async (req: any, res: any) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    
-    console.log('ADMIN: Changing admin password...');
-    console.log('ADMIN: Requested by:', req.user?.username);
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ message: 'Current password and new password are required' });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
     }
 
-    if (!req.user) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
-
-    // Get current user with password
+    // Get current admin user with password
     const user = await dbUtils.get(
-      'SELECT * FROM users WHERE id = ?',
+      'SELECT * FROM users WHERE id = ? AND role = "admin"',
       [req.user.id]
     );
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'Admin user not found' });
     }
 
     // Verify current password
@@ -206,23 +181,27 @@ export const changeAdminPassword = async (req: AuthRequest, res: Response) => {
     }
 
     // Hash new password
-    const saltRounds = 12;
+    const saltRounds = 10;
     const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
 
-    // Update password
+    // Update password in database
     await dbUtils.run(
       'UPDATE users SET password_hash = ? WHERE id = ?',
       [newPasswordHash, req.user.id]
     );
 
-    console.log(`ADMIN: Admin password changed successfully for: ${req.user.username}`);
+    res.json({ message: 'Admin password changed successfully' });
 
-    res.json({ 
-      message: 'Admin password changed successfully',
-      success: true
-    });
   } catch (error) {
-    console.error('ADMIN: Change admin password error:', error);
+    console.error('Change admin password error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
+};
+
+export {
+  login,
+  getCurrentUser,
+  changePassword,
+  changeUserPassword,
+  changeAdminPassword
 };

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { dbUtils } from '../database/connection.js';
-import { AuthRequest } from '../middleware/auth.js';
+import { dbUtils } from '../database/connection';
+import { AuthRequest } from '../middleware/auth';
 
 // Get all users (admin only)
 export const getAllUsers = async (req: AuthRequest, res: Response) => {

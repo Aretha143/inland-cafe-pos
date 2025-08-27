@@ -1,6 +1,6 @@
 import { Response } from 'express';
-import { dbUtils } from '../database/connection.js';
-import { AuthRequest } from '../middleware/auth.js';
+import { dbUtils } from '../database/connection';
+import { AuthRequest } from '../middleware/auth';
 
 // Define all available permissions in the system
 export const AVAILABLE_PERMISSIONS = {

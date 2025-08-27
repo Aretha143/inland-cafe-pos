@@ -5,7 +5,6 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
-  getLowStockProducts,
   updateStock,
   deleteAllProducts
 } from '../controllers/productsController.js';
@@ -15,7 +14,6 @@ const router = Router();
 
 // Public routes (with authentication)
 router.get('/', authenticateToken, getProducts);
-router.get('/low-stock', authenticateToken, getLowStockProducts);
 router.get('/:id', authenticateToken, getProductById);
 
 // Admin/Manager only routes

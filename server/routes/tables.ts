@@ -1,36 +1,23 @@
 import express from 'express';
-import { 
-  getTables, 
-  getTableById, 
-  createTable, 
-  updateTable, 
-  deleteTable, 
-  updateTableStatus,
-  getAvailableTables
+import {
+  getTables,
+  getTableById,
+  createTable,
+  updateTable,
+  deleteTable
 } from '../controllers/tablesController.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get all tables
-router.get('/', authenticateToken, requireRole(['admin', 'manager', 'cashier']), getTables);
+// Public routes (with authentication)
+router.get('/', authenticateToken, getTables);
+router.get('/:id', authenticateToken, getTableById);
 
-// Get available tables only
-router.get('/available', authenticateToken, requireRole(['admin', 'manager', 'cashier']), getAvailableTables);
-
-// Get table by id
-router.get('/:id', authenticateToken, requireRole(['admin', 'manager', 'cashier']), getTableById);
-
-// Create new table
+// Admin/Manager only routes
 router.post('/', authenticateToken, requireRole(['admin', 'manager']), createTable);
-
-// Update table
 router.put('/:id', authenticateToken, requireRole(['admin', 'manager']), updateTable);
 
-// Update table status (for occupation, cleaning, etc.)
-router.patch('/:id/status', authenticateToken, requireRole(['admin', 'manager', 'cashier']), updateTableStatus);
-
-// Delete table
-router.delete('/:id', authenticateToken, requireRole(['admin']), deleteTable);
+router.delete('/:id', authenticateToken, requireRole(['admin', 'manager']), deleteTable);
 
 export default router;

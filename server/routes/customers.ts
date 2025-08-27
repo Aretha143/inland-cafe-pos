@@ -4,27 +4,20 @@ import {
   getCustomerById,
   createCustomer,
   updateCustomer,
-  deleteCustomer,
-  updateLoyaltyPoints,
-  getMembershipStats
+  deleteCustomer
 } from '../controllers/customersController.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
-// All authenticated users can view customers and stats
+// Public routes (with authentication)
 router.get('/', authenticateToken, getCustomers);
-router.get('/membership/stats', authenticateToken, getMembershipStats);
 router.get('/:id', authenticateToken, getCustomerById);
 
-// All authenticated users can create and update customers
-router.post('/', authenticateToken, createCustomer);
-router.put('/:id', authenticateToken, updateCustomer);
+// Admin/Manager only routes
+router.post('/', authenticateToken, requireRole(['admin', 'manager']), createCustomer);
+router.put('/:id', authenticateToken, requireRole(['admin', 'manager']), updateCustomer);
 
-// Loyalty points management
-router.patch('/:id/loyalty', authenticateToken, updateLoyaltyPoints);
-
-// Only admin and managers can delete customers
 router.delete('/:id', authenticateToken, requireRole(['admin', 'manager']), deleteCustomer);
 
 export default router;

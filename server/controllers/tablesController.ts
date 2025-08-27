@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { dbUtils } from '../database/connection.js';
-import { AuthRequest } from '../middleware/auth.js';
+import { dbUtils } from '../database/connection';
+import { AuthRequest } from '../middleware/auth';
 
 export const getTables = async (req: AuthRequest, res: Response) => {
   try {
